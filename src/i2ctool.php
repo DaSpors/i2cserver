@@ -30,8 +30,8 @@ if( file_exists(__DIR__."/dev/{$request['cmd']}.class.php") )
 	$request['class'] = $request['cmd'];
 	$request['cmd'] = array_shift($argv);
 }
-$request['args'] = $argv;
 
+$request['args'] = $argv;
 function formatInt(&$value)
 {
 	global $format;
