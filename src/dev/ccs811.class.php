@@ -16,6 +16,11 @@ class CCS811 extends RequestHandler
 	const MEAS_MODE_60SEC = 0b00110000;
 	const MEAS_MODE_250MS = 0b01000000;
 	
+	const ECO2_MIN = 400;
+	const ECO2_MAX = 8192;
+	const TVOC_MIN = 0;
+	const TVOC_MAX = 1187;
+	
 	const R_REF      = 100000;
 	const R_NTC      = 10000;
 	const R_NTC_TEMP = 25;
@@ -113,8 +118,14 @@ class CCS811 extends RequestHandler
 		$eco2 = ($raw[0]<<8) + $raw[1];
 		$tvoc = ($raw[2]<<8) + $raw[3];
 		
+		if( !$ok 
+			|| $eco2 < self::ECO2_MIN || $eco2 > self::ECO2_MAX
+			|| $tvoc < self::TVOC_MIN || $tvoc > self::TVOC_MAX )
+		{
+			$this->result = [];
+			return false;
+		}
 		$this->result = compact('raw','eco2','tvoc');
-		
 		return $ok;
 	}
 }
