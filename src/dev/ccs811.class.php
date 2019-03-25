@@ -45,22 +45,6 @@ class CCS811 extends RequestHandler
 #		ntc_temp -= 273.15;                                 // 5
 	}
 	
-	private function handle($cmd,$reg,$ex=false)
-	{
-		$this->request['cmd'] = $cmd;
-		$this->request['reg'] = $reg;
-		if( $ex !== false )
-		{
-			if( $cmd == 'read' )
-				$this->request['len'] = $ex;
-			elseif( isset($this->request['args']) )
-				$this->request['args'] = $ex;
-			else
-				$this->request['data'] = $ex;
-		}			
-		return parent::$cmd();
-	}
-	
 	function getstatus()
 	{
 		$ok = $this->handle('read',CCS811::REG_STATUS);

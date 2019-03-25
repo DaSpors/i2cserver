@@ -42,6 +42,33 @@ function intarg($v)
 	return hexdec($v);
 }
 
+function boolarg($v)
+{
+	if( is_array($v) )
+		return array_map('boolarg',$v);
+
+	$v = strtolower($v);
+	if( is_numeric($v) )
+		return intval($v) == true;
+	return $v == 'on' || $v =='true' || $v == 'yes' || $v == 'y';
+}
+
+function enumarg($v,$values)
+{
+	if( is_array($v) )
+	{
+		$res = [];
+		foreach( $v as s )
+			$res[] = enumarg($s,$values);
+		return $res;
+	}
+	$values = array_map('strtolower',$values);
+	$i = array_search($values,$v);
+	if( isset($values[$i]) )
+		return $values[$i];
+	return false;
+}
+
 function hasBit($val,$bit)
 {
 	$v = pow(2,$bit);

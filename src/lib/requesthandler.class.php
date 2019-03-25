@@ -68,6 +68,35 @@ class RequestHandler
 		$this->result = $message;
 		return false;
 	}
+
+	protected function handle($cmd,$reg,$ex=false)
+	{
+		$this->request['cmd'] = $cmd;
+		$this->request['reg'] = $reg;
+		if( $ex !== false )
+		{
+			if( $cmd == 'read' )
+				$this->request['len'] = $ex;
+			elseif( isset($this->request['args']) )
+				$this->request['args'] = $ex;
+			else
+				$this->request['data'] = $ex;
+		}
+		return $this->$cmd();
+	}
+	
+	protected function devRead($reg,$len=1)
+	{
+		$res = [];
+		foreach( explode(" ",trim(shell_exec(self::$TOOL_BINARY." {$this->bus} {$this->dev} 1 $reg $len"))) as $b )
+			$res[] = hexdec($b);
+		return $res;
+	}
+	
+	protected function devWrite($reg,$data)
+	{
+		shell_exec(self::$TOOL_BINARY." {$this->bus} {$this->dev} 2 $reg ".implode(" ",$data));
+	}
 	
 	private function run()
 	{
