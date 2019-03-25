@@ -58,7 +58,7 @@ function enumarg($v,$values)
 	if( is_array($v) )
 	{
 		$res = [];
-		foreach( $v as s )
+		foreach( $v as $s )
 			$res[] = enumarg($s,$values);
 		return $res;
 	}

@@ -45,6 +45,11 @@ class CCS811 extends RequestHandler
 #		ntc_temp -= 273.15;                                 // 5
 	}
 	
+	function validate()
+	{
+		return parent::validate() && ($this->dev == 0x5A || $this->dev == 0x5B);
+	}
+	
 	function getstatus()
 	{
 		$ok = $this->handle('read',CCS811::REG_STATUS);

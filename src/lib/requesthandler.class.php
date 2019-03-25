@@ -32,6 +32,11 @@ class RequestHandler
 		}
 	}
 	
+	protected function validate()
+	{
+		return $this->bus && $this->dev;
+	}
+	
 	protected function checkarg($name,&$target)
 	{
 		if( $name == '*' )
@@ -112,6 +117,8 @@ class RequestHandler
 				return $this->err("Unknown class '$class'");
 			
 			$handler = new $class($this->request,true);
+			if( !$handler->validate() )
+				return $this->err("Invalid device '$class' at bus {$handler->bus} address {$handler->dev}");
 			$ok = $handler->run();
 			$this->result = $handler->result;
 			return $ok;

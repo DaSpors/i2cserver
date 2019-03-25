@@ -26,6 +26,11 @@ class IOPiPlus extends RequestHandler
 		return $pins;
 	}
 	
+	function validate()
+	{
+		return parent::validate() && $this->dev >= 0x20 && $this->dev <= 0x27;
+	}
+	
 	function getmodes()
 	{
 		return $this->onOffResult(self::REG_DIRA,self::REG_DIRB,'in','out');
