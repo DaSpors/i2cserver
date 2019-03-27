@@ -10,8 +10,12 @@ function writeln()
 		else
 			$msg[] = $a;
 	}
-	fwrite(STDOUT,implode("\t",$msg)."\n");
-	fflush(STDOUT);
+	if( defined('stdout') )
+	{
+		fwrite(STDOUT,implode("\t",$msg)."\n");
+		fflush(STDOUT);
+	}
+	else error_log(implode("\t",$msg));
 }
 
 function dieError($message)
@@ -63,8 +67,8 @@ function enumarg($v,$values)
 		return $res;
 	}
 	$values = array_map('strtolower',$values);
-	$i = array_search($values,$v);
-	if( isset($values[$i]) )
+	$i = array_search(strtolower($v),$values);
+	if( $i !== false )
 		return $values[$i];
 	return false;
 }

@@ -4,7 +4,7 @@ class RequestHandler
 {
 	protected static $TOOL_BINARY = false;
 	
-	var $request, $result, $bus=false, $dev=false;
+	var $request, $result, $bus=false, $dev=false, $checkedArgs = [];
 	
 	public static function Process($request,&$result)
 	{
@@ -39,11 +39,17 @@ class RequestHandler
 	
 	protected function checkarg($name,&$target)
 	{
+		if( isset($this->checkedArgs[$name]) )
+		{
+			$target = $this->checkedArgs[$name];
+			return true;
+		}
 		if( $name == '*' )
 		{
 			$target = isset($this->request['args'])
 				?$this->request['args']
 				:$this->request['data'];
+			$this->checkedArgs[$name] = $target;
 			return true;
 		}
 		
@@ -52,16 +58,19 @@ class RequestHandler
 			if( $name != $a || $this->$a === false )
 				continue;
 			$target = $this->$a;
+			$this->checkedArgs[$name] = $target;
 			return true;
 		}
 		if( isset($this->request[$name]) && $this->request[$name]!=='' )
 		{
 			$target = $this->request[$name];
+			$this->checkedArgs[$name] = $target;
 			return true;
 		}
 		if( isset($this->request['args']) && count($this->request['args'])>0 )
 		{
 			$target = array_shift($this->request['args']);
+			$this->checkedArgs[$name] = $target;
 			return true;
 		}
 		$this->result = "Missing argument '$name' ".json_encode($this->request);
@@ -95,18 +104,19 @@ class RequestHandler
 		$res = [];
 		foreach( explode(" ",trim(shell_exec(self::$TOOL_BINARY." {$this->bus} {$this->dev} 1 $reg $len"))) as $b )
 			$res[] = hexdec($b);
-		return $res;
+		return count($res)==1?$res[0]:$res;
 	}
 	
 	protected function devWrite($reg,$data)
 	{
+		$data = is_array($data)?$data:[$data];
 		shell_exec(self::$TOOL_BINARY." {$this->bus} {$this->dev} 2 $reg ".implode(" ",$data));
 	}
 	
 	private function run()
 	{
 		if( !$this->checkarg('cmd',$cmd) ) return false;
-		if( !method_exists($this,$cmd) || method_exists(get_parent_class($this),$cmd) )
+		if( !is_subclass_of($this,"RequestHandler") && (!method_exists($this,$cmd) || method_exists(get_parent_class($this),$cmd)) )
 		{
 			if( !$this->checkarg('class',$class) ) 
 				return $this->err("Unknown command '$cmd'");
@@ -123,6 +133,8 @@ class RequestHandler
 			$this->result = $handler->result;
 			return $ok;
 		}
+		if( !method_exists($this,$cmd) )
+			return $this->err("Unknown command '$cmd'");
 		return $this->$cmd();
 	}
 	
