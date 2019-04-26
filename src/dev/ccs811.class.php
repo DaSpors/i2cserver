@@ -46,7 +46,7 @@ class CCS811 extends RequestHandler
 	}
 	
 	function validate()
-	{
+	{return true;
 		return parent::validate() && ($this->dev == 0x5A || $this->dev == 0x5B);
 	}
 	
