@@ -79,9 +79,9 @@ function hasBit($val,$bit)
 	return ($val & $v) == $v;
 }
 
-function bitField($byte,$bits)
+function bitField($byte,$bits,$noraw=false)
 {
-	$res = ['raw'=>$byte];
+	$res = $noraw?[]:['raw'=>$byte,'hex'=>"0x".dechex($byte)];
 	foreach( $bits as $name=>$bit )
 		$res[$name] = hasBit($byte,$bit);
 	return $res;

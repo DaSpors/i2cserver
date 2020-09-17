@@ -9,6 +9,7 @@ class CCS811 extends RequestHandler
 	const REG_ERROR     = 0xE8;
 	const REG_APP_START = 0xF4;
 	const REG_RESET     = 0xFF;
+	const REG_BASELINE  = 0x11;
 	
 	const MEAS_MODE_IDLE  = 0b00000000;
 	const MEAS_MODE_1SEC  = 0b00010000;
@@ -46,22 +47,28 @@ class CCS811 extends RequestHandler
 	}
 	
 	function validate()
-	{return true;
+	{
 		return parent::validate() && ($this->dev == 0x5A || $this->dev == 0x5B);
 	}
 	
 	function getstatus()
 	{
-		$ok = $this->handle('read',CCS811::REG_STATUS);
-		$this->result = bitField($this->result[0],['error'=>0,'datardy'=>3,'appok'=>4,'fw_mode'=>7,'appmode'=>7]);
+		$status = $this->devRead(CCS811::REG_STATUS);
+		$this->result = ['error' => 'Error reading'];
+		if( count($status)==0 )
+			return false;
+		$this->result = bitField($status,['error'=>0,'datardy'=>3,'appok'=>4,'fw_mode'=>7,'appmode'=>7]);
 		$this->result['bootmode'] = !$this->result['appmode'];
-		return $ok;
+		return true;
 	}
 	
 	function getmode()
 	{
-		$ok = $this->handle('read',CCS811::REG_MEAS_MODE);
-		switch( $this->result[0] & 0b01110000 )
+		$raw = $this->devRead(CCS811::REG_MEAS_MODE);
+		$this->result = ['error'=>'Error reading'];
+		if( count($raw)==0 )
+			return false;
+		switch( $raw & 0b01110000 )
 		{
 			case self::MEAS_MODE_IDLE: $mode = 'idle'; break;
 			case self::MEAS_MODE_1SEC: $mode = '1sec'; break;
@@ -70,19 +77,21 @@ class CCS811 extends RequestHandler
 			case self::MEAS_MODE_250MS: $mode = '250ms'; break;
 			default: $mode = 'undef'; break;
 		}
-		$this->result = bitField($this->result[0],['tresh'=>2,'interrupt'=>3]);
+		$this->result = bitField($raw,['tresh'=>2,'interrupt'=>3]);
 		$this->result['mode'] = $mode;
-		return $ok;
+		return true;
 	}
 	
 	function start()
 	{
-		return $this->handle('touch',CCS811::REG_APP_START);
+		$this->devWrite(CCS811::REG_APP_START,[]);
+		return true;
 	}
 	
 	function reboot()
 	{
-		return $this->handle('write',CCS811::REG_RESET,[0x11, 0xE5, 0x72, 0x8A]);
+		$this->devWrite(CCS811::REG_RESET,[0x11, 0xE5, 0x72, 0x8A]);
+		return true;
 	}
 
 	function setmode()
@@ -97,24 +106,56 @@ class CCS811 extends RequestHandler
 			case '1min': $mode = self::MEAS_MODE_60SEC; break;
 			default: return $this->err("Invalid mode '$mode'");
 		}
-		return $this->handle('write',CCS811::REG_MEAS_MODE,[$mode]);
+		$this->devWrite(CCS811::REG_MEAS_MODE,[$mode]);
+		return true;
 	}
 	
 	function getvalues()
 	{
-		$ok = $this->handle('read',CCS811::REG_ALG_DATA,6);
-		$raw = $this->result;
-		$eco2 = ($raw[0]<<8) + $raw[1];
-		$tvoc = ($raw[2]<<8) + $raw[3];
+		if( !$this->getmode() )
+			return false;
+		if( $this->result['mode'] == self::MEAS_MODE_IDLE )
+		{
+			$this->result = ["error" => "Sensor in idle mode"];
+			return false;
+		}
 		
-		if( !$ok 
-			|| $eco2 < self::ECO2_MIN || $eco2 > self::ECO2_MAX
-			|| $tvoc < self::TVOC_MIN || $tvoc > self::TVOC_MAX )
+		if( !$this->getstatus() )
+			return false;
+		if( !$this->result['datardy'] )
 		{
 			$this->result = [];
 			return false;
 		}
-		$this->result = compact('raw','eco2','tvoc');
-		return $ok;
+		
+		$this->result = ['error'=>'Error reading'];
+		$raw = $this->devRead(CCS811::REG_ALG_DATA,8);
+		if( count($raw)==0 )
+			return false;
+		
+		$eco2 = ($raw[0]<<8) + $raw[1];
+		$tvoc = ($raw[2]<<8) + $raw[3];
+		$status = bitField($raw[4],['error'=>0,'datardy'=>3,'appok'=>4,'fw_mode'=>7,'appmode'=>7],true);
+		$status['bootmode'] = !$status['appmode'];
+		$error = bitField($raw[5],['WRITE_REG_INVALID'=>0,'READ_REG_INVALID'=>1,'MEASMODE_INVALID'=>2,'MAX_RESISTANCE'=>3,'HEATER_FAULT'=>4,'HEATER_SUPPLY'=>5],true);
+		
+		$raw_av  = ($raw[6]<<8) + $raw[7];
+		$current = $raw_av >> 10;
+		$voltage = ($raw_av & 0b1111111111) / 1023 * 1.65; // see datasheet
+		
+		$baseline = $this->devRead(self::REG_BASELINE);
+		
+		$this->result = compact('raw','eco2','tvoc','status','error','current','voltage','baseline');
+		return true;
+	}
+
+	function getError()
+	{
+		$err = $this->devRead(CCS811::REG_ERROR);
+		$this->result = ['error'=>'Error reading'];
+		if( count($err) == 0 )
+			return false;
+		$this->result = bitField($err,['WRITE_REG_INVALID'=>0,'READ_REG_INVALID'=>1,'MEASMODE_INVALID'=>2,'MAX_RESISTANCE'=>3,'HEATER_FAULT'=>4,'HEATER_SUPPLY'=>5]);
+		return true;
 	}
 }
